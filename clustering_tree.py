@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 '''
-Hierarchical clustering on a Polars DataFrame
+Clustering trees from Polars DataFrame
 '''
 
 # imports
+from hdbscan import HDBSCAN # use `from cuml.cluster import HDBSCAN` for GPU-accelerated
 from matplotlib import ticker, use
 from polars import DataFrame
 from polars.selectors import numeric
@@ -17,6 +18,17 @@ use('Agg')
 def compute_hierarchical_tree(df:DataFrame, label_col:str|None=None, method:str='ward', metric:str='euclidean'):
     labels = list(range(df.height)) if label_col is None else df.get_column(label_col).to_list()
     linkage_matrix = linkage(df.select(numeric()).to_numpy(), method=method, metric=metric)
+    root, nodes = to_tree(linkage_matrix, rd=True)
+    for i in range(len(labels)):
+        nodes[i].label = labels[i]
+    return linkage_matrix, root, nodes
+
+# compute HDBSCAN clustering tree
+def compute_hdbscan_tree(df:DataFrame, label_col:str|None=None, metric:str='euclidean', leaf_size=1):
+    labels = list(range(df.height)) if label_col is None else df.get_column(label_col).to_list()
+    model = HDBSCAN(min_cluster_size=2, min_samples=1, metric=metric, leaf_size=leaf_size)
+    model.fit(df.select(numeric()).to_numpy())
+    linkage_matrix = model.single_linkage_tree_.to_numpy()
     root, nodes = to_tree(linkage_matrix, rd=True)
     for i in range(len(labels)):
         nodes[i].label = labels[i]
@@ -51,10 +63,8 @@ if __name__ == "__main__":
     })
     print(df)
 
-    # compute clustering tree
+    # hierarchical clustering
     linkage_matrix, root, nodes = compute_hierarchical_tree(df, label_col='label')
-
-    # compute clusters by height (no singletons)
     print("Number of Clusters by Height (no singletons):")
     num_clusters_height = sorted(compute_clusters_vs_height(nodes, include_singletons=False).items())
     x = list(); y = list()
@@ -66,10 +76,8 @@ if __name__ == "__main__":
     ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     ax.set_xlabel("Height")
     ax.set_ylabel("Number of Clusters")
-    fig.savefig("clusters_by_height.pdf", format="pdf", bbox_inches="tight")
+    fig.savefig("hierarchical_clusters_by_height.pdf", format="pdf", bbox_inches="tight")
     plt.close(fig)
-
-    # compute clusters by height (include singletons)
     print("Number of Clusters by Height (with Singletons):")
     num_clusters_height_singletons = sorted(compute_clusters_vs_height(nodes, include_singletons=True).items())
     x = list(); y = list()
@@ -81,5 +89,34 @@ if __name__ == "__main__":
     ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
     ax.set_xlabel("Height")
     ax.set_ylabel("Number of Clusters")
-    fig.savefig("clusters_by_height_singletons.pdf", format="pdf", bbox_inches="tight")
+    fig.savefig("hierarchical_clusters_by_height_singletons.pdf", format="pdf", bbox_inches="tight")
+    plt.close(fig)
+
+    # HDBSCAN clustering
+    linkage_matrix, root, nodes = compute_hdbscan_tree(df, label_col='label')
+    print("Number of Clusters by Height (no singletons):")
+    num_clusters_height = sorted(compute_clusters_vs_height(nodes, include_singletons=False).items())
+    x = list(); y = list()
+    for height, num_clusters in num_clusters_height:
+        print(f"- {height}\t{num_clusters}")
+        x.append(height); y.append(num_clusters)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(x, y)
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    ax.set_xlabel("Height")
+    ax.set_ylabel("Number of Clusters")
+    fig.savefig("hdbscan_clusters_by_height.pdf", format="pdf", bbox_inches="tight")
+    plt.close(fig)
+    print("Number of Clusters by Height (with Singletons):")
+    num_clusters_height_singletons = sorted(compute_clusters_vs_height(nodes, include_singletons=True).items())
+    x = list(); y = list()
+    for height, num_clusters in num_clusters_height_singletons:
+        print(f"- {height}\t{num_clusters}")
+        x.append(height); y.append(num_clusters)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.plot(x, y)
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    ax.set_xlabel("Height")
+    ax.set_ylabel("Number of Clusters")
+    fig.savefig("hdbscan_clusters_by_height_singletons.pdf", format="pdf", bbox_inches="tight")
     plt.close(fig)
