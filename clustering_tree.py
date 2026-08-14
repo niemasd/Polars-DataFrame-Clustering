@@ -64,6 +64,7 @@ if __name__ == "__main__":
     print(df)
 
     # hierarchical clustering
+    print("=== Hierarchical Clustering ===")
     linkage_matrix, root, nodes = compute_hierarchical_tree(df, label_col='label')
     print("Number of Clusters by Height (no singletons):")
     num_clusters_height = sorted(compute_clusters_vs_height(nodes, include_singletons=False).items())
@@ -93,6 +94,7 @@ if __name__ == "__main__":
     plt.close(fig)
 
     # HDBSCAN clustering
+    print("=== HDBSCAN Clustering ===")
     linkage_matrix, root, nodes = compute_hdbscan_tree(df, label_col='label')
     print("Number of Clusters by Height (no singletons):")
     num_clusters_height = sorted(compute_clusters_vs_height(nodes, include_singletons=False).items())
