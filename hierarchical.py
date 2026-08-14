@@ -7,9 +7,7 @@ Hierarchical clustering on a Polars DataFrame
 from matplotlib import ticker, use
 from polars import DataFrame
 from polars.selectors import numeric
-from queue import PriorityQueue
-from scipy.cluster.hierarchy import ClusterNode, linkage, to_tree
-import matplotlib
+from scipy.cluster.hierarchy import linkage, to_tree
 import matplotlib.pyplot as plt
 
 # set things up
