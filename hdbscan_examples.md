@@ -42,6 +42,51 @@ def compute_hdbscan_tree(df, labels=None):
     return tree
 ```
 
+## Clustering by Cutting at Height
+A simple approach to compute clusters from an HDBSCAN clustering tree is to cut the tree at some height *h* above the leaves (the tree is ultrametric) and output (the leaves of) all resulting subtrees as clusters.
+
+```python
+def cluster_cut_height(tree, h):
+    heights = {node:h for node, h in tree.heights()}
+    clusters = list()
+    to_visit = Queue()
+    to_visit.put(tree.root)
+    while not to_visit.empty():
+        node = to_visit.get()
+        if node.is_leaf():
+            clusters.append([node])
+        elif (heights[node] < h) and ((node.parent is None) or (heights[node.parent] >= h)):
+            clusters.append([curr for curr in node.traverse_preorder()])
+        else:
+            for child in node.children:
+                to_visit.put(child)
+    return clusters
+```
+
+This approach is parametric: the user needs to know the desired height *h* at which to cut. One can select *h* by determining the number of clusters that would exist at any arbitrary value of *h* in a single traversal of the nodes of the tree, sorted in ascending distance from the root:
+
+```python
+def compute_clusters_vs_height(tree, include_singletons=False):
+    tree_height = tree.height()
+    num_clusters = dict()
+    curr_num_clusters = 0
+    for root_dist, node in tree.traverse_rootdistorder(ascending=False):
+        if node.is_leaf():
+            if include_singletons:
+                curr_num_clusters += 1
+        else: # internal node
+            if include_singletons:
+                curr_num_clusters -= 1
+            else:
+                num_leaf_children = sum(child.is_leaf() for child in node.children)
+                if num_leaf_children == 0:
+                    curr_num_clusters -= 1
+                elif num_leaf_children == 2:
+                    curr_num_clusters += 1
+        num_clusters[tree_height-root_dist] = curr_num_clusters
+    return num_clusters
+```
+
 ## Excess of Mass (EOM) Clustering
 [Excess of Mass (EOM)](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html#extract-the-clusters) selects clusters by finding branches that remain sufficiently persistent across desnity levels:
 
