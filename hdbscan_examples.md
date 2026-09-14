@@ -97,7 +97,7 @@ def compute_clusters_vs_height(tree, include_singletons=False):
 This approach is the [default clustering method in HDBSCAN](https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#leaf-clustering): this reimplementation is so it's easy to deviate from it / easily explore alternatives.
 
 ```python
-def cluster_eom(tree):
+def cluster_eom(tree, min_cluster_size=2, max_cluster_size=float('inf')):
     # calculate heights and lambda_birth values
     root_dist = dict()
     lambda_birth = dict()
@@ -128,7 +128,7 @@ def cluster_eom(tree):
             subtree_size[node] = sum(subtree_size[child] for child in node.children)
             stability[node] = sum(subtree_size[child] * (lambda_birth[child] - lambda_birth[node]) for child in node.children)
             children_score = sum(best[child] for child in node.children)
-            if stability[node] >= children_score:
+            if (stability[node] >= children_score) and (min_cluster_size <= subtree_size[node] <= max_cluster_size):
                 best[node] = stability[node]
                 select[node] = True
             else:
