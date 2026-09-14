@@ -87,8 +87,8 @@ def compute_clusters_vs_height(tree, include_singletons=False):
     return num_clusters
 ```
 
-## Excess of Mass (EOM) Clustering
-[Excess of Mass (EOM)](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html#extract-the-clusters) selects clusters by finding branches that remain sufficiently persistent across desnity levels:
+## Excess of Mass (EoM) Clustering
+[Excess of Mass (EoM)](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html#extract-the-clusters) selects clusters by finding branches that remain sufficiently persistent across density levels:
 
 1. Calculate $\lambda_{b}\left(u\right)=\frac{1}{h\left(u\right)}$ for all nodes $u$, where $h\left(u\right)$ is the height of node $u$
 2. Calculate $L\left(u\right)$ for all nodes $u$, where $L\left(u\right)$ is the number of leaves in the subtree rooted at $u$
