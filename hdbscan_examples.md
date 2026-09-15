@@ -87,6 +87,80 @@ def compute_clusters_vs_height(tree, include_singletons=False):
     return num_clusters
 ```
 
+## Branch Outlier Cutting
+This is a clustering approach where the tree is cut at branches that are greater than `num_stds` standard deviations larger than the mean branch length below them.
+
+```python
+def cluster_std(tree, num_stds=3, min_cluster_size=10):
+    # calculate branch length means and standard deviations in one pass
+    num_leaves = dict() # number of leaves below current node
+    bl_s = dict() # sum of branch lengths *below* the current node
+    bl_ss = dict() # sum of square of branch lengths *below* the current node
+    bl_c = dict() # count of branch lengths *below* the current node
+    bl_mean = dict() # mean branch length *below* the current node
+    bl_std = dict() # standard deviation branch length *below* the current node
+    clusters = list()
+    to_cluster = set()
+    for node in tree.traverse_postorder():
+        if node.is_leaf():
+            num_leaves[node] = 1
+            to_cluster.add(node)
+            bl_s[node] = 0
+            bl_ss[node] = 0
+            bl_c[node] = 0
+            bl_mean[node] = 0
+            bl_std[node] = 0
+        else:
+            num_leaves[node] = sum(num_leaves[child] for child in node.children)
+            bl_s[node] = sum(bl_s[child] + child.edge_length for child in node.children)
+            bl_ss[node] = sum(bl_ss[child] + (child.edge_length**2) for child in node.children)
+            bl_c[node] = sum(bl_c[child] + 1 for child in node.children)
+            bl_mean[node] = bl_s[node] / bl_c[node]
+            bl_std[node] = sqrt((bl_ss[node] / bl_c[node]) - (bl_mean[node]**2))
+            if (num_leaves[node] >= min_cluster_size) and ((node.edge_length is None) or (node.edge_length > (bl_mean[node] + (num_stds*bl_std[node])))):
+                cluster = list()
+                for leaf in node.traverse_leaves():
+                    if leaf in to_cluster:
+                        cluster.append(leaf)
+                        to_cluster.remove(leaf)
+                if len(cluster) != 0:
+                    clusters.append(cluster)
+    return clusters + [[leaf] for leaf in to_cluster]
+```
+
+## Dynamic Tree Cut Clustering
+This is an implementation of Dynamic Tree Cut clustering from [Langfelder *et al*. (2008)](https://doi.org/10.1093/bioinformatics/btm563).
+
+```python
+def cluster_dct(tree, min_gap=0.25):
+    height = dict()
+    num_leaves = dict()
+    to_cluster = set()
+    clusters = list()
+    for node in tree.traverse_postorder():
+        if node.is_leaf():
+            height[node] = 0
+            num_leaves[node] = 1
+            to_cluster.add(node)
+        else:
+            height[node] = max(height[child] + child.edge_length for child in node.children)
+            num_leaves[node] = sum(num_leaves[child] for child in node.children)
+    for node in tree.traverse_preorder():
+        if not node.is_root():
+            parent_height = height[node.parent]
+            if parent_height > 0:
+                gap = (parent_height - height[node]) / parent_height
+                if gap >= min_gap:
+                    cluster = list()
+                    for leaf in node.traverse_leaves():
+                        if leaf in to_cluster:
+                            cluster.append(leaf)
+                            to_cluster.remove(leaf)
+                    if len(cluster) != 0:
+                        clusters.append(cluster)
+    return clusters + [[leaf] for leaf in to_cluster]
+```
+
 ## Excess of Mass (EoM) Clustering
 [Excess of Mass (EoM)](https://hdbscan.readthedocs.io/en/latest/how_hdbscan_works.html#extract-the-clusters) selects clusters by finding branches that remain sufficiently persistent across density levels:
 
