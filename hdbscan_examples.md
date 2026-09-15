@@ -153,9 +153,12 @@ def cluster_eom(tree, min_cluster_size=2, max_cluster_size=float('inf')):
 Annotate each leaf with its cluster number (`0` through `len(clusters)-1`) and other useful metrics, and save as a Newick file, which can be visualized using [Taxonium](https://taxonium.org).
 
 ```python
-# initialize every node's node_params dict
-for node in tree.traverse_preorder():
-    node.node_params = dict()
+# initialize every node's node_params dict with num_leaves
+for node in tree.traverse_postorder():
+    if node.is_leaf():
+        node.node_params = {'num_leaves': 1}
+    else:
+        node.node_params = {'num_leaves': sum(child.node_params['num_leaves'] for child in node.children)}
 
 # label leaves with their cluster numbers
 node_to_clusters = dict()
@@ -172,24 +175,22 @@ for feature in clustering_features:
     key_prefix = f'summary_{feature}'
     for node in tree.traverse_postorder():
         if node.is_leaf():
-            node.node_params[feature] = df.item(node.scipy_id, feature)
+            node.node_params[feature] = dfc_clustering.item(node.scipy_id, feature)
             for s in ['min', 'max', 'sum']:
                 node.node_params[f'{key_prefix}_{s}'] = node.node_params[feature] # delete later
-            node.node_params['num_points'] = 1
         else:
             for s, f in [('min',min), ('max',max), ('sum',sum)]:
                 k = f'{key_prefix}_{s}'
                 node.node_params[k] = f(child.node_params[k] for child in node.children)
-            node.node_params['num_points'] = sum(child.node_params['num_points'] for child in node.children)
-            node.node_params[f'{key_prefix}_mean'] = node.node_params[f'{key_prefix}_sum'] / node.node_params['num_points']
+            node.node_params[f'{key_prefix}_mean'] = node.node_params[f'{key_prefix}_sum'] / node.node_params['num_leaves']
 
 # clean up nodes and write Newick file
 for node in tree.traverse_preorder():
     if node.is_leaf():
-        to_delete = [k for k in node.node_params if k.startswith('summary_')] + ['num_points']
+        to_delete = [k for k in node.node_params if k.startswith('summary_')] + ['num_leaves']
     else:
         to_delete = [k for k in node.node_params if k.endswith('_sum')]
     for k in to_delete:
         del node.node_params[k]
-tree.write_tree_newick('hdbscan_tree_annotated.nwk.gz')
+tree.write_tree_newick('hdbscan_tree_clusters.nwk.gz')
 ```
