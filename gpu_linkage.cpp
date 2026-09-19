@@ -12,6 +12,23 @@
     -I/opt/conda/include/rapids \
     -L/opt/conda/lib \
     -lcuvs -lrmm
+
+    Then use it in Python:
+
+    import cudf
+    import cupy as cp
+
+    X = cp.ascontiguousarray(
+    cudf.DataFrame.from_arrow(
+        df.to_arrow()
+    ).to_cupy()
+
+    mst, dendrogram, distances, sizes, core_dists = gpu_linkage.build_linkage(
+        X,
+        c=15,
+        metric="L2SqrtExpanded",
+    )
+)
 */
 
 #include <cstdint>
